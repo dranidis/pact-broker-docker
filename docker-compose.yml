@@ -18,6 +18,9 @@ services:
       - "9292:9292"
     depends_on:
       - postgres
+    # Map host.docker.internal on Linux so the container can reach services running on the host (eg. webhook target on host port 8787)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       PACT_BROKER_PORT: '9292'
       PACT_BROKER_DATABASE_URL: "postgres://postgres:password@postgres/postgres"
@@ -31,6 +34,18 @@ services:
       # This list allows the app to be addressed from the host and from within another docker container correctly
       # Ngnix config below makes the app accessible on ports 443 and 80, while the Ruby application itself runs on port 9292
       PACT_BROKER_BASE_URL: 'https://localhost http://localhost http://localhost:9292 http://pact-broker:9292 https://host.docker.internal http://host.docker.internal http://host.docker.internal:9292'
+      # --- Webhook whitelist configuration ---
+      # Allow only HTTP scheme for webhooks. Default is https; set to 'http https' to allow both.
+      # Only use plain HTTP if your webhook targets are on a trusted internal network.
+      PACT_BROKER_WEBHOOK_SCHEME_WHITELIST: 'https http'
+      # Space separated list of allowed webhook destination hosts, CIDR ranges or regexes.
+      # Replace these examples with your actual CI/build endpoints.
+      # Regexes must start and end with / and backslashes escaped.
+    # Add localhost + 127.0.0.1 and host.docker.internal so webhook can target a service running on host at 8787
+      PACT_BROKER_WEBHOOK_HOST_WHITELIST: 'localhost 127.0.0.1 host.docker.internal webhook-target ci.internal.local 10.0.5.0/24 /.*\\.corp\\.internal$/'
+      # Explicitly restrict allowed HTTP methods for webhooks (default is POST). Keep POST only for security.
+      PACT_BROKER_WEBHOOK_HTTP_METHOD_WHITELIST: 'POST'
+
 
 volumes:
   postgres-volume:
